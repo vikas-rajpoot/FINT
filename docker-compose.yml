@@ -1,0 +1,129 @@
+version: '3.8'
+
+services:
+  # Redis for message broker and caching
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # PostgreSQL for relational data
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: trading_system
+      POSTGRES_USER: trading_user
+      POSTGRES_PASSWORD: trading_pass
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U trading_user -d trading_system"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # InfluxDB for time series data
+  influxdb:
+    image: influxdb:2.7-alpine
+    environment:
+      DOCKER_INFLUXDB_INIT_MODE: setup
+      DOCKER_INFLUXDB_INIT_USERNAME: admin
+      DOCKER_INFLUXDB_INIT_PASSWORD: adminpass
+      DOCKER_INFLUXDB_INIT_ORG: trading-org
+      DOCKER_INFLUXDB_INIT_BUCKET: market-data
+    ports:
+      - "8086:8086"
+    volumes:
+      - influxdb_data:/var/lib/influxdb2
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8086/ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Market Analyst Agent
+  market-analyst:
+    build: .
+    environment:
+      AGENT_TYPE: MARKET_ANALYST
+      AGENT_ID: market-analyst-1
+      REDIS_URL: redis://redis:6379
+      POSTGRES_URL: postgresql://trading_user:trading_pass@postgres:5432/trading_system
+      INFLUXDB_URL: http://influxdb:8086
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      influxdb:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # Risk Manager Agent
+  risk-manager:
+    build: .
+    environment:
+      AGENT_TYPE: RISK_MANAGER
+      AGENT_ID: risk-manager-1
+      REDIS_URL: redis://redis:6379
+      POSTGRES_URL: postgresql://trading_user:trading_pass@postgres:5432/trading_system
+      INFLUXDB_URL: http://influxdb:8086
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      influxdb:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # Portfolio Optimizer Agent
+  portfolio-optimizer:
+    build: .
+    environment:
+      AGENT_TYPE: PORTFOLIO_OPTIMIZER
+      AGENT_ID: portfolio-optimizer-1
+      REDIS_URL: redis://redis:6379
+      POSTGRES_URL: postgresql://trading_user:trading_pass@postgres:5432/trading_system
+      INFLUXDB_URL: http://influxdb:8086
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      influxdb:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # Execution Agent
+  execution-agent:
+    build: .
+    environment:
+      AGENT_TYPE: EXECUTION_AGENT
+      AGENT_ID: execution-agent-1
+      REDIS_URL: redis://redis:6379
+      POSTGRES_URL: postgresql://trading_user:trading_pass@postgres:5432/trading_system
+      INFLUXDB_URL: http://influxdb:8086
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      influxdb:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  redis_data:
+  postgres_data:
+  influxdb_data:
