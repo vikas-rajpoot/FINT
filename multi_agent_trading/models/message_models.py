@@ -12,6 +12,7 @@ import uuid
 class MessageType(Enum):
     """Types of messages that can be sent between agents."""
     MARKET_DATA = "MARKET_DATA"
+    MARKET_DATA_UPDATE = "MARKET_DATA_UPDATE"
     TRADING_PROPOSAL = "TRADING_PROPOSAL"
     VOTE_REQUEST = "VOTE_REQUEST"
     VOTE_RESPONSE = "VOTE_RESPONSE"
@@ -19,7 +20,12 @@ class MessageType(Enum):
     EXECUTION_ORDER = "EXECUTION_ORDER"
     EXECUTION_RESULT = "EXECUTION_RESULT"
     HEALTH_CHECK = "HEALTH_CHECK"
+    AGENT_HEARTBEAT = "AGENT_HEARTBEAT"
     SYSTEM_ALERT = "SYSTEM_ALERT"
+    PORTFOLIO_UPDATE = "PORTFOLIO_UPDATE"
+    OPTIMIZATION_REQUEST = "OPTIMIZATION_REQUEST"
+    REBALANCING_REQUEST = "REBALANCING_REQUEST"
+    EFFICIENT_FRONTIER_REQUEST = "EFFICIENT_FRONTIER_REQUEST"
 
 
 @dataclass
@@ -71,7 +77,7 @@ class AgentResponse:
     original_message_id: str
     agent_id: str
     success: bool
-    result: Optional[Dict[str, Any]] = None
+    data: Optional[Dict[str, Any]] = None
     error_message: Optional[str] = None
     processing_time_ms: Optional[float] = None
     timestamp: datetime = None
@@ -90,7 +96,7 @@ class AgentResponse:
             "original_message_id": self.original_message_id,
             "agent_id": self.agent_id,
             "success": self.success,
-            "result": self.result,
+            "data": self.data,
             "error_message": self.error_message,
             "processing_time_ms": self.processing_time_ms,
             "timestamp": self.timestamp.isoformat()

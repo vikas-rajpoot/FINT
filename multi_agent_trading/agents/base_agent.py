@@ -37,8 +37,8 @@ class BaseAgent(ABC):
         self.logger = logging.getLogger(f"{self.__class__.__name__}.{agent_id}")
         
         # Initialize core services
-        self.message_bus = MessageBus(config.message_queue_config)
-        self.model_manager = ModelManager(agent_id, config.model_version)
+        self.message_bus = MessageBus(config.message_queue_config.to_dict())
+        self.model_manager = ModelManager(agent_id, config.model_version, config.model_path)
         self.metrics_collector = MetricsCollector(agent_id)
         
         # Agent state
@@ -56,6 +56,9 @@ class BaseAgent(ABC):
         
         self.logger.info(f"Starting agent {self.agent_id}")
         self._is_running = True
+        
+        # Initialize model manager
+        await self.model_manager.initialize()
         
         # Start message processing
         await self.message_bus.connect()
@@ -105,6 +108,8 @@ class BaseAgent(ABC):
             
             # Record metrics
             processing_time = (datetime.utcnow() - start_time).total_seconds() * 1000
+            response.processing_time_ms = processing_time
+            
             await self.metrics_collector.record_message_processed(
                 message.message_type.value, 
                 processing_time, 

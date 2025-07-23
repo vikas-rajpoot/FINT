@@ -317,6 +317,237 @@ class Vote:
 
 
 @dataclass
+class Position:
+    """Portfolio position data."""
+    symbol: str
+    quantity: int
+    entry_price: float
+    current_price: float
+    market_value: float
+    unrealized_pnl: float
+    weight: float  # Portfolio weight
+    
+    def __post_init__(self):
+        """Validate data after initialization."""
+        self.validate()
+    
+    def validate(self):
+        """Validate position data."""
+        if not self.symbol or not isinstance(self.symbol, str):
+            raise ValidationError("Symbol must be a non-empty string")
+        
+        if not isinstance(self.quantity, int):
+            raise ValidationError("Quantity must be an integer")
+        
+        if not isinstance(self.entry_price, (int, float)) or self.entry_price <= 0:
+            raise ValidationError("Entry price must be a positive number")
+        
+        if not isinstance(self.current_price, (int, float)) or self.current_price <= 0:
+            raise ValidationError("Current price must be a positive number")
+        
+        if not isinstance(self.market_value, (int, float)):
+            raise ValidationError("Market value must be a number")
+        
+        if not isinstance(self.unrealized_pnl, (int, float)):
+            raise ValidationError("Unrealized PnL must be a number")
+        
+        if not isinstance(self.weight, (int, float)) or not (0 <= self.weight <= 1):
+            raise ValidationError("Weight must be a number between 0 and 1")
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for serialization."""
+        return {
+            "symbol": self.symbol,
+            "quantity": self.quantity,
+            "entry_price": self.entry_price,
+            "current_price": self.current_price,
+            "market_value": self.market_value,
+            "unrealized_pnl": self.unrealized_pnl,
+            "weight": self.weight
+        }
+
+
+@dataclass
+class Portfolio:
+    """Portfolio data structure."""
+    portfolio_id: str
+    total_value: float
+    cash: float
+    positions: Dict[str, Position]
+    timestamp: datetime
+    
+    def __post_init__(self):
+        """Validate data after initialization."""
+        self.validate()
+    
+    def validate(self):
+        """Validate portfolio data."""
+        if not self.portfolio_id or not isinstance(self.portfolio_id, str):
+            raise ValidationError("Portfolio ID must be a non-empty string")
+        
+        if not isinstance(self.total_value, (int, float)) or self.total_value < 0:
+            raise ValidationError("Total value must be a non-negative number")
+        
+        if not isinstance(self.cash, (int, float)) or self.cash < 0:
+            raise ValidationError("Cash must be a non-negative number")
+        
+        if not isinstance(self.positions, dict):
+            raise ValidationError("Positions must be a dictionary")
+        
+        for symbol, position in self.positions.items():
+            if not isinstance(symbol, str):
+                raise ValidationError("Position symbol must be a string")
+            if not isinstance(position, Position):
+                raise ValidationError("Position must be a Position instance")
+        
+        if not isinstance(self.timestamp, datetime):
+            raise ValidationError("Timestamp must be a datetime object")
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for serialization."""
+        return {
+            "portfolio_id": self.portfolio_id,
+            "total_value": self.total_value,
+            "cash": self.cash,
+            "positions": {symbol: position.to_dict() for symbol, position in self.positions.items()},
+            "timestamp": self.timestamp.isoformat()
+        }
+    
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'Portfolio':
+        """Create instance from dictionary."""
+        positions = {
+            symbol: Position(
+                symbol=pos_data["symbol"],
+                quantity=pos_data["quantity"],
+                entry_price=pos_data["entry_price"],
+                current_price=pos_data["current_price"],
+                market_value=pos_data["market_value"],
+                unrealized_pnl=pos_data["unrealized_pnl"],
+                weight=pos_data["weight"]
+            )
+            for symbol, pos_data in data["positions"].items()
+        }
+        
+        return cls(
+            portfolio_id=data["portfolio_id"],
+            total_value=data["total_value"],
+            cash=data["cash"],
+            positions=positions,
+            timestamp=datetime.fromisoformat(data["timestamp"])
+        )
+
+
+@dataclass
+class RiskParameters:
+    """Risk parameters for trading decisions."""
+    stop_loss_pct: float
+    take_profit_pct: float
+    max_position_size_pct: float
+    max_portfolio_risk_pct: float
+    volatility_adjustment: float
+    
+    def __post_init__(self):
+        """Validate data after initialization."""
+        self.validate()
+    
+    def validate(self):
+        """Validate risk parameters."""
+        if not isinstance(self.stop_loss_pct, (int, float)) or not (0 < self.stop_loss_pct <= 1):
+            raise ValidationError("Stop loss percentage must be between 0 and 1")
+        
+        if not isinstance(self.take_profit_pct, (int, float)) or self.take_profit_pct <= 0:
+            raise ValidationError("Take profit percentage must be positive")
+        
+        if not isinstance(self.max_position_size_pct, (int, float)) or not (0 < self.max_position_size_pct <= 1):
+            raise ValidationError("Max position size percentage must be between 0 and 1")
+        
+        if not isinstance(self.max_portfolio_risk_pct, (int, float)) or not (0 < self.max_portfolio_risk_pct <= 1):
+            raise ValidationError("Max portfolio risk percentage must be between 0 and 1")
+        
+        if not isinstance(self.volatility_adjustment, (int, float)) or self.volatility_adjustment <= 0:
+            raise ValidationError("Volatility adjustment must be positive")
+
+
+@dataclass
+class PositionSize:
+    """Position sizing calculation result."""
+    symbol: str
+    recommended_quantity: int
+    max_quantity: int
+    risk_amount: float
+    position_value: float
+    risk_pct: float
+    rationale: str
+    
+    def __post_init__(self):
+        """Validate data after initialization."""
+        self.validate()
+    
+    def validate(self):
+        """Validate position size data."""
+        if not self.symbol or not isinstance(self.symbol, str):
+            raise ValidationError("Symbol must be a non-empty string")
+        
+        if not isinstance(self.recommended_quantity, int) or self.recommended_quantity < 0:
+            raise ValidationError("Recommended quantity must be a non-negative integer")
+        
+        if not isinstance(self.max_quantity, int) or self.max_quantity < 0:
+            raise ValidationError("Max quantity must be a non-negative integer")
+        
+        if not isinstance(self.risk_amount, (int, float)) or self.risk_amount < 0:
+            raise ValidationError("Risk amount must be non-negative")
+        
+        if not isinstance(self.position_value, (int, float)) or self.position_value < 0:
+            raise ValidationError("Position value must be non-negative")
+        
+        if not isinstance(self.risk_pct, (int, float)) or not (0 <= self.risk_pct <= 1):
+            raise ValidationError("Risk percentage must be between 0 and 1")
+        
+        if not self.rationale or not isinstance(self.rationale, str):
+            raise ValidationError("Rationale must be a non-empty string")
+
+
+@dataclass
+class ExposureReport:
+    """Portfolio exposure analysis report."""
+    total_exposure: float
+    sector_exposure: Dict[str, float]
+    currency_exposure: Dict[str, float]
+    correlation_matrix: Dict[str, Dict[str, float]]
+    concentration_risk: float
+    diversification_ratio: float
+    timestamp: datetime
+    
+    def __post_init__(self):
+        """Validate data after initialization."""
+        self.validate()
+    
+    def validate(self):
+        """Validate exposure report data."""
+        if not isinstance(self.total_exposure, (int, float)) or self.total_exposure < 0:
+            raise ValidationError("Total exposure must be non-negative")
+        
+        if not isinstance(self.sector_exposure, dict):
+            raise ValidationError("Sector exposure must be a dictionary")
+        
+        if not isinstance(self.currency_exposure, dict):
+            raise ValidationError("Currency exposure must be a dictionary")
+        
+        if not isinstance(self.correlation_matrix, dict):
+            raise ValidationError("Correlation matrix must be a dictionary")
+        
+        if not isinstance(self.concentration_risk, (int, float)) or not (0 <= self.concentration_risk <= 1):
+            raise ValidationError("Concentration risk must be between 0 and 1")
+        
+        if not isinstance(self.diversification_ratio, (int, float)) or self.diversification_ratio < 0:
+            raise ValidationError("Diversification ratio must be non-negative")
+        
+        if not isinstance(self.timestamp, datetime):
+            raise ValidationError("Timestamp must be a datetime object")
+
+
+@dataclass
 class Experience:
     """Experience data for reinforcement learning."""
     experience_id: str
